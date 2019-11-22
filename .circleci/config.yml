@@ -1,0 +1,43 @@
+version: 2
+jobs:
+  build:
+    docker:
+      # Specify the version you desire here
+      - image: circleci/php:7.3-browsers
+
+    working_directory: ~/laravel
+
+    steps:
+      - checkout
+      - run:
+          name: Install PHP exts
+          command: |
+            sudo docker-php-ext-install zip
+
+      - run: sudo composer self-update
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "composer.json" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+
+      - run: composer install -n --prefer-dist
+
+      - save_cache:
+          paths:
+            - ./vendor
+          key: v1-dependencies-{{ checksum "composer.json" }}
+
+      - run: cp .env.example .env
+      - run: php artisan key:generate
+      - run: php artisan view:clear
+      - run: php artisan cache:clear
+      - run: ./vendor/bin/phpunit
+
+workflows:
+  version: 2
+  notify_deploy:
+    jobs:
+      - build
